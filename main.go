@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/parser"
 	"text/template"
 	"io/ioutil"
 	"log"
@@ -76,7 +77,10 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		body := string(markdown.ToHTML(contents, nil, nil))
+		extensions := parser.CommonExtensions | parser.Attributes
+		parser := parser.NewWithExtensions(extensions)
+
+		body := string(markdown.ToHTML(contents, parser, nil))
 		title := getPageTitle(path)
 
 		a.sendPage(w, &PageTemplateBindings{Body: body, Title: title})
