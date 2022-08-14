@@ -47,7 +47,7 @@ func getPageTitle(url string) string {
 func (a *App) sendPage(w io.Writer, bindings *PageTemplateBindings) {
 	err := a.t.Execute(w, bindings)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 }
 
