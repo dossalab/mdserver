@@ -16,6 +16,7 @@ import (
 type App struct {
 	t *template.Template
 	root string
+	fs http.Handler
 }
 
 type PageTemplateBindings struct {
@@ -68,20 +69,19 @@ func (a *App) buildPath(url string) (string, bool) {
 
 func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 	path, isPage := a.buildPath(r.URL.Path[1:])
-
-	contents, err := ioutil.ReadFile(path)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	if isPage {
+		contents, err := ioutil.ReadFile(path)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		body := string(markdown.ToHTML(contents, nil, nil))
 		title := getPageTitle(path)
 
 		a.sendPage(w, &PageTemplateBindings{Body: body, Title: title})
 	} else {
-		w.Write(contents)
+		a.fs.ServeHTTP(w, r)
 	}
 }
 
@@ -90,15 +90,19 @@ func main() {
 		log.Fatalf("usage: %s <site root>", os.Args[0])
 	}
 
-	a := App{}
+	root := os.Args[1]
 
 	t, err := template.New("page").Parse(pageTemplate)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	a.root = os.Args[1]
-	a.t = t
+	a := App{
+		root: root,
+		t: t,
+		fs: http.FileServer(http.Dir(root)),
+	}
+
 	http.HandleFunc("/", a.serve)
 
 	log.Fatal(http.ListenAndServe(":8000", nil))
