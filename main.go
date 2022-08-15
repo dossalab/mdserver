@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/snabb/sitemap"
@@ -16,16 +18,23 @@ import (
 	"time"
 )
 
+type Settings struct {
+	Root     string
+	Port     uint
+	Hostname string
+	SiteName string
+}
+
 type App struct {
-	t    *template.Template
-	root string
-	base string
-	fs   http.Handler
+	t        *template.Template
+	fs       http.Handler
+	settings *Settings
 }
 
 type PageTemplateBindings struct {
-	Body  string
-	Title string
+	Body     string
+	Title    string
+	SiteName string
 }
 
 type SitemapEntry struct {
@@ -38,7 +47,7 @@ const pageTemplate = `<!DOCTYPE HTML>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ .Title }}</title>
+  <title>{{ .Title }} | {{ .SiteName }}</title>
   <link rel="stylesheet" type="text/css" href="/css/main.css" >
 </head>
 
@@ -73,7 +82,7 @@ func (a *App) buildPath(url string) (string, bool) {
 		page = true
 	}
 
-	return path.Join(a.root, url), page
+	return path.Join(a.settings.Root, url), page
 }
 
 func (a *App) serve(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +100,11 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 		body := string(markdown.ToHTML(contents, parser, nil))
 		title := getPageTitle(path)
 
-		a.sendPage(w, &PageTemplateBindings{Body: body, Title: title})
+		a.sendPage(w, &PageTemplateBindings{
+			Body: body,
+			Title: title,
+			SiteName: a.settings.SiteName,
+		})
 	} else {
 		a.fs.ServeHTTP(w, r)
 	}
@@ -133,11 +146,11 @@ func findSitemapEntries(root string) []SitemapEntry {
 
 func (a *App) generateSitemap(w http.ResponseWriter, r *http.Request) {
 	sm := sitemap.New()
-	entries := findSitemapEntries(a.root)
+	entries := findSitemapEntries(a.settings.Root)
 
 	for _, entry := range entries {
 		sm.Add(&sitemap.URL{
-			Loc:        path.Join(a.base, entry.Path),
+			Loc:        path.Join(a.settings.Hostname, entry.Path),
 			LastMod:    &entry.LastMod,
 			ChangeFreq: sitemap.Weekly,
 		})
@@ -146,13 +159,23 @@ func (a *App) generateSitemap(w http.ResponseWriter, r *http.Request) {
 	sm.WriteTo(w)
 }
 
-func main() {
-	if len(os.Args) != 3 {
-		log.Fatalf("usage: %s <name> <site root>", os.Args[0])
-	}
+func parseSettings() *Settings {
+	port := flag.Uint("port", 8000, "port")
+	hostname := flag.String("host", "http://example.com", "hostname (for sitemap.xml)")
+	siteName := flag.String("sitename", "Example", "the name of the website (as shown in title)")
+	root := flag.String("root", ".", "the base directory where the site is located")
+	flag.Parse()
 
-	base := os.Args[1]
-	root := os.Args[2]
+	return &Settings{
+		Port:     *port,
+		Root:     *root,
+		Hostname: *hostname,
+		SiteName: *siteName,
+	}
+}
+
+func main() {
+	settings := parseSettings()
 
 	t, err := template.New("page").Parse(pageTemplate)
 	if err != nil {
@@ -160,14 +183,13 @@ func main() {
 	}
 
 	a := App{
-		root: root,
-		base: base,
-		t:    t,
-		fs:   http.FileServer(http.Dir(root)),
+		t:        t,
+		fs:       http.FileServer(http.Dir(settings.Root)),
+		settings: settings,
 	}
 
 	http.HandleFunc("/", a.serve)
 	http.HandleFunc("/sitemap.xml", a.generateSitemap)
 
-	log.Fatal(http.ListenAndServe(":8000", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", settings.Port), nil))
 }
