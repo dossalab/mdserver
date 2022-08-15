@@ -60,7 +60,7 @@ const pageTemplate = `<!DOCTYPE HTML>
 
 func getPageTitle(url string) string {
 	filename := strings.TrimSuffix(filepath.Base(url), filepath.Ext(url))
-	return strings.Title(filename)
+	return strings.Title(strings.ReplaceAll(filename, "-", " "))
 }
 
 func (a *App) sendPage(w io.Writer, bindings *PageTemplateBindings) {
