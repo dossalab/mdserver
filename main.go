@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	urlutils "net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -101,8 +102,8 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 		title := getPageTitle(path)
 
 		a.sendPage(w, &PageTemplateBindings{
-			Body: body,
-			Title: title,
+			Body:     body,
+			Title:    title,
 			SiteName: a.settings.SiteName,
 		})
 	} else {
@@ -149,8 +150,13 @@ func (a *App) generateSitemap(w http.ResponseWriter, r *http.Request) {
 	entries := findSitemapEntries(a.settings.Root)
 
 	for _, entry := range entries {
+		url, err := urlutils.JoinPath(a.settings.Hostname, entry.Path)
+		if err != nil {
+			continue
+		}
+
 		sm.Add(&sitemap.URL{
-			Loc:        path.Join(a.settings.Hostname, entry.Path),
+			Loc:        url,
 			LastMod:    &entry.LastMod,
 			ChangeFreq: sitemap.Weekly,
 		})
