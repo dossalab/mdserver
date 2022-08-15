@@ -1,2 +1,6 @@
 github.com/gomarkdown/markdown v0.0.0-20220731190611-dcdaee8e7a53 h1:JguE3sS3yLzLiCTCnsmzVFuTvTMDJALbzCgurwY5G/0=
 github.com/gomarkdown/markdown v0.0.0-20220731190611-dcdaee8e7a53/go.mod h1:JDGcbDT52eL4fju3sZ4TeHGsQwhG9nbDV21aMyhwPoA=
+github.com/snabb/diagio v1.0.0 h1:kovhQ1rDXoEbmpf/T5N2sUp2iOdxEg+TcqzbYVHV2V0=
+github.com/snabb/diagio v1.0.0/go.mod h1:ZyGaWFhfBVqstGUw6laYetzeTwZ2xxVPqTALx1QQa1w=
+github.com/snabb/sitemap v1.0.0 h1:7vJeNPAaaj7fQSRS3WYuJHzUjdnhLdSLLpvVtnhbzC0=
+github.com/snabb/sitemap v1.0.0/go.mod h1:Id8uz1+WYdiNmSjEi4BIvL5UwNPYLsTHzRbjmDwNDzA=

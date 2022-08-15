@@ -3,26 +3,34 @@ package main
 import (
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/parser"
-	"text/template"
+	"github.com/snabb/sitemap"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"path/filepath"
-	"path"
-	"strings"
-	"io"
 	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"text/template"
+	"time"
 )
 
 type App struct {
-	t *template.Template
+	t    *template.Template
 	root string
-	fs http.Handler
+	base string
+	fs   http.Handler
 }
 
 type PageTemplateBindings struct {
 	Body  string
 	Title string
+}
+
+type SitemapEntry struct {
+	Path    string
+	LastMod time.Time
 }
 
 const pageTemplate = `<!DOCTYPE HTML>
@@ -89,12 +97,62 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func main() {
-	if len(os.Args) != 2 {
-		log.Fatalf("usage: %s <site root>", os.Args[0])
+func findSitemapEntries(root string) []SitemapEntry {
+	var entries []SitemapEntry
+
+	err := filepath.WalkDir(root, func(syspath string, d os.DirEntry, err error) error {
+		path, _ := filepath.Rel(root, syspath)
+		if err != nil {
+			return nil
+		}
+
+		ext := filepath.Ext(path)
+		if ext == ".md" {
+			fi, err := d.Info()
+			if err != nil {
+				return nil
+			}
+
+			entry := SitemapEntry{
+				Path:    strings.TrimSuffix(path, ext),
+				LastMod: fi.ModTime(),
+			}
+
+			entries = append(entries, entry)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("unable to walk the root directory - %v", err)
 	}
 
-	root := os.Args[1]
+	return entries
+}
+
+func (a *App) generateSitemap(w http.ResponseWriter, r *http.Request) {
+	sm := sitemap.New()
+	entries := findSitemapEntries(a.root)
+
+	for _, entry := range entries {
+		sm.Add(&sitemap.URL{
+			Loc:        path.Join(a.base, entry.Path),
+			LastMod:    &entry.LastMod,
+			ChangeFreq: sitemap.Weekly,
+		})
+	}
+
+	sm.WriteTo(w)
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		log.Fatalf("usage: %s <name> <site root>", os.Args[0])
+	}
+
+	base := os.Args[1]
+	root := os.Args[2]
 
 	t, err := template.New("page").Parse(pageTemplate)
 	if err != nil {
@@ -103,11 +161,13 @@ func main() {
 
 	a := App{
 		root: root,
-		t: t,
-		fs: http.FileServer(http.Dir(root)),
+		base: base,
+		t:    t,
+		fs:   http.FileServer(http.Dir(root)),
 	}
 
 	http.HandleFunc("/", a.serve)
+	http.HandleFunc("/sitemap.xml", a.generateSitemap)
 
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
