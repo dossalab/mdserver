@@ -24,6 +24,7 @@ type Settings struct {
 	Port     uint
 	Hostname string
 	SiteName string
+	Language string
 }
 
 type App struct {
@@ -33,6 +34,7 @@ type App struct {
 }
 
 type PageTemplateBindings struct {
+	Lang     string
 	Body     string
 	Title    string
 	SiteName string
@@ -44,7 +46,7 @@ type SitemapEntry struct {
 }
 
 const pageTemplate = `<!DOCTYPE HTML>
-<html>
+<html lang="{{ .Lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -105,6 +107,7 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 			Body:     body,
 			Title:    title,
 			SiteName: a.settings.SiteName,
+			Lang:     a.settings.Language,
 		})
 	} else {
 		a.fs.ServeHTTP(w, r)
@@ -170,6 +173,7 @@ func parseSettings() *Settings {
 	hostname := flag.String("host", "http://example.com", "hostname (for sitemap.xml)")
 	siteName := flag.String("sitename", "Example", "the name of the website (as shown in title)")
 	root := flag.String("root", ".", "the base directory where the site is located")
+	language := flag.String("lang", "en", "content language")
 	flag.Parse()
 
 	return &Settings{
@@ -177,6 +181,7 @@ func parseSettings() *Settings {
 		Root:     *root,
 		Hostname: *hostname,
 		SiteName: *siteName,
+		Language: *language,
 	}
 }
 
